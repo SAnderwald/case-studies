@@ -1,0 +1,604 @@
+---
+title: 'MSDS7333QTWUnit8_Q7 - Chapter 2: Cherry Blossom Running Times'
+author: "Celia Taylor, Scott Anderwald, Chandan Nahar"
+date: "November 1, 2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+INTRODUCTION:
+For case study 8 the team decided upon question number 7 which is the obtaining and creating a dataframe file of the women's race times.  R scripts were used to both webscrape and create the .txt and dataframe files.  An extra step a .csv file was created to determine the viability of the data since it can be viewed outside of the rstudio platform.  
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+BACKGROUND:
+Data for the case study was obtained from the cherryblossum.org website. The Cherry Blossum Run-Walk is an annual event held in Washington D.C. during April.  Race results are separated by gender and year. For the case study the period for the data was between 1999 to 2012.  Previous work created the dataframe for the men's time.  Problem 7 of the book requested the webscraping and creation of .txt and a dataframe file.  With the dataframe other workers would be able to analyze different aspects of the data.  Analysis of the data will be beyond the realm of question 7 in the class textbook.
+
+```{r ShowInstalledPackages1,  include=FALSE, echo=FALSE}
+# Show all installed packages
+
+installed.packages () 
+sessionInfo()
+```
+
+METHODS:
+
+The r scripts for the project were obtained from the book which was utilized for the men's portion of data creation.  Certain portions of the scripts were modified to obtain the .txt files needed for the dataframe requirement.
+
+1. LOAD PACKAGES AND LIBRARIES
+```{r InstallPackages1,  include=FALSE, echo=FALSE}
+
+#First order of business is to install all of the packages and libraries.
+
+
+##### Load packages and functions
+
+# These are the packages that I generally want loaded
+#install.packages(c( "downloader", "plyr",  "brew",  "countrycode",  "devtools", "dplyr", "ggplot2", "googleVis", "knitr", "MCMCpack", "repmis", "RCurl", "rmarkdown", "markdown", "texreg", "tidyr", "WDI", "xtable", "Zelig", "car", "Rtools"), repos="http://cran.rstudio.com/")
+
+# All but the packages below are already installed after I do a "R" restart.  The order is important, because MCMCpack
+# is not found if fields is before it.
+
+#install.packages(c("markdown", "MCMCpack", "fields", "RCurl"), repos="http://cran.rstudio.com/")
+
+install.packages(c("markdown", "fields", "RCurl"), repos="http://cran.rstudio.com/")
+
+install.packages(c("rmarkdown"), repos="http://cran.rstudio.com/")
+
+#install.packages(c("MCMCpack"), repos="http://cran.rstudio.com/")
+
+install.packages(c("RCurl"), repos="http://cran.rstudio.com/")
+#html/xml parsing library
+install.packages(c("rvest"), repos="http://cran.rstudio.com/")
+
+install.packages(c("XML"), repos="http://cran.rstudio.com/")
+
+#html/xml parsing library
+library(knitr)
+library(markdown)
+library(rmarkdown)          
+library(XML)
+library(downloader)
+library(plyr)
+library(brew)
+library(countrycode)
+library(devtools)
+library(ggplot2)
+library(googleVis)
+library(knitr) 
+#library(MCMCpack) 
+library(repmis) 
+library(RCurl) 
+
+library(texreg)
+library(tidyr) 
+library(WDI) 
+library(xtable) 
+#library(Zelig) 
+library(markdown)
+library(car)
+library(dplyr)
+library(lattice)
+library(fields)
+
+# install.packages(c("fields"), repos="http://cran.rstudio.com/")
+
+# library(fields)
+
+# Hadley Wickham rvest for Easily Harvest (Scrape) web Pages
+#https://www.rdocumentation.org/packages/rvest/versions/0.3.2
+#install.packages(c("rvest"), repos="http://cran.rstudio.com/")
+library(rvest)
+
+sessionInfo()
+
+#End of install packages
+
+```
+
+2. SET UP DIRECTORIES
+
+```{r SetUpDirectories1,  include=FALSE, echo=FALSE}
+#maind
+#    has markdown files
+#    datad
+#      MenTxt
+#      WomenTxt
+#    analysisd
+#    paperd
+
+
+getwd()
+# Set up directory variables.  Directory assignment below works.
+maind <- "/Users/Celia Taylor/Documents/GitHub/MSDS7333QTWUnit8"
+datad <- paste(maind, "DATA", sep = "/")
+analysisd <- paste(maind, "ANALYSIS", sep = "/")
+paperd <- paste(maind, "PAPER", sep = "/")
+MenTxt <- paste(datad, "MenTxt", sep = "/")
+WomenTxt <- paste(datad, "WomenTxt", sep = "/")
+
+print(maind)
+print(datad)
+print(analysisd)
+print(paperd)
+
+# Owen Martin original code
+# setwd("~/Documents/Fall 2017/QTW/Chapter2/")
+
+getwd()
+setwd(datad)
+getwd()
+```
+
+3. WEB SCRAPING
+    a. Get Men's data and save into table.
+```{r WebDataScrapeMen1,  include=FALSE, echo=FALSE}
+
+# This is code from MSDS7333 Prof. Owen Martin.
+
+library(XML)          #html/xml parsing library
+ubase = "http://www.cherryblossom.org/"
+url = paste(ubase, "results/2012/2012cucb10m-m.htm", sep = "")
+doc = htmlParse(url)
+
+preNode = getNodeSet(doc, "//pre")    #DSL to obtain content of particular <pre> tag
+                                   #domain-specific language
+ 
+txt = xmlValue(preNode[[1]])   # there is only one <pre>
+
+nchar(txt)
+
+substr(txt, 1, 50)
+
+substr(txt, nchar(txt) - 50, nchar(txt))
+
+els = strsplit(txt, "\\r\\n")[[1]]     # break up by line: \r\n carriage return/new line: why? what is the unix standard?
+
+length(els)
+
+els[1:3]
+
+els[ length(els) ]    # common pattern for last element in an array; cf. tail
+       # Retrieve data from web site, find preformatted text,
+       # return as a character vector.
+extractResTable = function(url) {
+  doc = htmlParse(url)
+  preNode = getNodeSet(doc, "//pre")
+  txt = xmlValue(preNode[[1]])
+  els = strsplit(txt, "\r\n")[[1]]   
+  
+  return(els)
+}
+
+m2012 = extractResTable(url)
+
+identical(m2012, els)
+
+ubase = "http://www.cherryblossom.org/"
+# original code urls = paste(ubase, "results/", 1999:2012, "/",
+#             1999:2012, "cucb10m-m.htm", sep = "")
+
+# debug code because getting a subscript out of bounds error on the menTables line
+# debug code from https://stackoverflow.com/questions/15031338/subscript-out-of-bounds-general-definition-and-solution
+
+# original code options(error=recover)
+
+# original code print(urls)
+
+# original code print (extractResTable)
+# original code print (els)
+
+# original code menTables = lapply(urls, extractResTable)   # lapply when each "list" element is distinct
+
+# Error in preNode[[1]] : subscript out of bounds
+
+# choose option 2
+# original code Browse[1]> ls()  # see what's in the local environment
+
+# original code Browse[1]> url   # print the url for comparison
+
+# original code Browse[1]> length(preNode)  # length here is zero, so something is messed up
+# some corrections to urls on this line
+# 2005 problematic
+
+#Now all of the URLS are correct.
+
+
+#Original modified to book
+#menURLs = 
+#  c("cb99m.htm", "cb003m.htm", "results/2001/oof_m.html", 
+#      "results/2002/oofm.htm", "results/2003/CB03-M.HTM",
+#      "results/2004/men.htm", "results/2005/CB05-M.htm",  
+#      "results/2006/men.htm", "results/2007/men.htm", 
+#      "results/2008/men.htm", "results/2009/09cucb-M.htm",
+#  results/2010/2010cucb10m-m.htm", 
+#      "results/2011/2011cucb10m-m.htm",
+#      "results/2012/2012cucb10m-m.htm")
+  
+  
+  
+  menURLs =c("results/1999/cb99m.html", "results/2000/Cb003m.htm","results/2001/oof_m.html", "results/2002/oofm.htm", "results/2003/CB03-M.HTM",    "results/2004/men.htm", "results/2005/CB05-M.htm",    "results/2006/men.htm", "results/2007/men.htm",     "results/2008/men.htm", "results/2009/09cucb-M.htm",    "results/2010/2010cucb10m-m.htm",     "results/2011/2011cucb10m-m.htm",    "results/2012/2012cucb10m-m.htm")
+  
+
+
+
+
+
+
+
+
+#http://www.cherryblossom.org/cb99m.htm
+
+urls = paste(ubase, menURLs, sep = "")
+
+urls[1:3]
+
+menTables = lapply(urls, extractResTable)
+names(menTables) = 1999:2012
+
+sapply(menTables, length) # still have problems at 1999, 2000, 2009
+
+extractResTable =
+  # Retrieve data from web site, 
+  # find the preformatted text,
+  # and return as a character vector.
+function(url, year = 1999) {
+  doc = htmlParse(url)
+
+  if (year == 2000) {
+    # Get text from 4th font element
+    # File is ill-formed so <pre> search doesn't work.
+    ff = getNodeSet(doc, "//font")
+    txt = xmlValue(ff[[4]])
+  }
+  else {
+    preNode = getNodeSet(doc, "//pre")
+    txt = xmlValue(preNode[[1]])
+  } 
+  
+  els = strsplit(txt, "\r\n")[[1]]
+  return(els)
+}
+
+years = 1999:2012
+
+# Make sure working directory is correct
+
+setwd(datad)
+getwd()
+
+menTables = mapply(extractResTable, url = urls, year = years)
+names(menTables) = years
+sapply(menTables, length)
+
+extractResTable = # third try, including patches for 2000 and 2009
+  #
+  # Retrieve data from web site, 
+  # find the preformatted text,
+  # and write lines or return as a character vector.
+  #
+  function(url = "http://www.cherryblossom.org/results/2009/09cucb-F.htm",
+           year = 1999, sex = "male", file = NULL) {
+    doc = htmlParse(url)
+
+    if (year == 2000) {
+      # Get preformatted text from 4th font element
+      # The top file is ill formed so the <pre> search doesn't work.
+      ff = getNodeSet(doc, "//font")
+      txt = xmlValue(ff[[4]])
+      els = strsplit(txt, "\r\n")[[1]]
+    }
+    else if (year == 2009 & sex == "male") {
+      # Get preformatted text from <div class="Section1"> element
+      # Each line of results is in a <pre> element
+      div1 = getNodeSet(doc, "//div[@class='Section1']")
+      pres = getNodeSet(div1[[1]], "//pre")
+      els = sapply(pres, xmlValue)
+    }
+    else {
+      # Get preformatted text from <pre> elements
+      pres = getNodeSet(doc, "//pre")
+      txt = xmlValue(pres[[1]])
+      els = strsplit(txt, "\r\n")[[1]]   
+    } 
+    
+    if (is.null(file)) return(els)
+    # Write the lines as a text file.
+    writeLines(els, con = file)
+  }
+
+
+years = 1999:2012
+
+setwd(datad)
+
+menTables = mapply(extractResTable, url = urls, year = years, file = paste("MenTxt/", 1999:2012, ".txt", sep=""))
+names(menTables) = years
+sapply(menTables, length)
+
+setwd(MenTxt)
+getwd()
+
+save(menTables, file = "CBMenTextTables.rda")
+
+```
+
+    b. Get Women's data and save into table.
+
+```{r WebDataScrapeWomen1,  include=FALSE, echo=FALSE}
+
+# Set working directory to one level above where women's files go.
+setwd(datad)
+
+library(XML)
+ubase = "http://www.cherryblossom.org/"
+
+extractResTable = # third try, including patches for 2000 and 2009
+  #
+  # Retrieve data from web site, 
+  # find the preformatted text,
+  # and write lines or return as a character vector.
+  #
+  function(url = "http://www.cherryblossom.org/results/2009/09cucb-F.htm",
+           year = 1999, sex = "female", file = NULL) {
+    doc = htmlParse(url)
+    
+    if (year == 2000) {
+      # Get preformatted text from 4th font element
+      # The top file is ill formed so the <pre> search doesn't work.
+      ff = getNodeSet(doc, "//font")
+      txt = xmlValue(ff[[4]])
+      els = strsplit(txt, "\r\n")[[1]]
+    }
+    else {
+      # Get preformatted text from <pre> elements
+      pres = getNodeSet(doc, "//pre")
+      txt = xmlValue(pres[[1]])
+      els = strsplit(txt, "\r\n")[[1]]   
+    } 
+    
+    if (is.null(file)) return(els)
+    # Write the lines as a text file.
+    writeLines(els, con = file)
+  }
+
+womenURLs = 
+  c("results/1999/cb99f.html", 
+    "results/2000/Cb003f.htm", 
+    "results/2001/oof_f.html", 
+    "results/2002/ooff.htm",
+    "results/2003/CB03-F.HTM",
+    "results/2004/women.htm", "results/2005/CB05-F.htm", 
+    "results/2006/women.htm", "results/2007/women.htm", 
+    "results/2008/women.htm", "results/2009/09cucb-F.htm",
+    "results/2010/2010cucb10m-f.htm", 
+    "results/2011/2011cucb10m-f.htm",
+    "results/2012/2012cucb10m-f.htm")
+
+urls = paste(ubase, womenURLs, sep = "")
+urls[1:3]
+
+womenTables = lapply(urls, extractResTable)
+names(womenTables) = 1999:2012
+
+sapply(womenTables, length)
+
+years = 1999:2012
+
+#setwd("~/Documents/ProjectFolder/R/Case_Studies/Case_Study_8")
+setwd(datad)
+
+#Original code womenTables = mapply(extractResTable, url = urls, year = years, file = paste("WomenTxt/", 1999:2012,".txt",sep=""))
+
+
+womenTables = mapply(extractResTable, url = urls, year = years, file = paste("WomenTxt/", 1999:2000,".txt",sep=""))
+
+womenTables = mapply(extractResTable, url = urls, year = years, file = paste("WomenTxt/", 2002:2012,".txt",sep=""))
+
+
+save(womenTables, file = "WomenTextTables_update.rda")
+
+
+```
+
+
+        Put Women'S data from table into text files directly in WomenTxt directory.
+
+```{r WebDataScrapeWomenPart2,  include=FALSE, echo=FALSE}
+
+# Set working directory directly into the actual directory where women' files go.
+setwd(WomenTxt)
+
+findColLocs = function(spacerRow) {
+  spaceLocs = gregexpr(" ", spacerRow)[[1]]
+  rowLength = nchar(spacerRow)
+  if (substring(spacerRow, rowLength, rowLength) != " ")
+    return( c(0, spaceLocs, rowLength + 1))
+  else return(c(0, spaceLocs))
+}
+
+selectCols =
+  function(colNames, headerRow, searchLocs)
+  {
+    sapply(colNames,
+           function(name, headerRow, searchLocs)
+           {
+             startPos = regexpr(name, headerRow)[[1]]
+             if (startPos == -1)
+               return( c(NA, NA) )
+             index = sum(startPos >= searchLocs)
+             c(searchLocs[index] + 1, searchLocs[index + 1] - 1)
+           },
+           headerRow = headerRow, searchLocs = searchLocs )
+  }
+
+
+extractVariables =
+  function(file, varNames =c("name", "home", "ag", "gun",
+                             "net", "time"))
+  {
+    # Find the index of the row with =s
+    eqIndex = grep("^===", file)
+    # Extract the two key rows and the data
+    spacerRow = file[eqIndex]
+    headerRow = tolower(file[ eqIndex - 1 ])
+    body = file[ -(1 : eqIndex) ]
+    # Obtain the starting and ending positions of variables
+    searchLocs = findColLocs(spacerRow)
+    locCols = selectCols(varNames, headerRow, searchLocs)
+    Values = mapply(substr, list(body), start = locCols[1, ],
+                    stop = locCols[2, ])
+    colnames(Values) = varNames
+    invisible(Values)
+  }
+wfilenames = paste( 1999:2012, ".txt", sep = "")
+womenFiles = lapply(wfilenames, readLines)
+names(womenFiles) = 1999:2012
+
+womenResMat = lapply(womenFiles, extractVariables)
+head(womenResMat[[3]], 10)
+tail(womenResMat[[3]], 10)
+
+length(womenResMat)
+
+sapply(womenResMat, nrow)
+
+### page 55 Section 2.3
+
+age = as.numeric(womenResMat[['2012']][ , 'ag'])
+
+tail(age)
+###____Plot 2012 Age ______
+pdf("CB_BoxplotAgeByYr.pdf", width = 8, height = 5)
+oldPar = par(mar = c(4.1, 4.1, 1, 1))
+
+boxplot(age, ylab = "Age", xlab = "Year")
+
+par(oldPar)
+dev.off()
+
+head(womenFiles[['2003']])
+
+womenFiles[['2006']][2200:2205]
+
+selectCols = function(shortColNames, headerRow, searchLocs) {
+  sapply(shortColNames, function(shortName, headerRow, searchLocs){
+    startPos = regexpr(shortName, headerRow)[[1]]
+    if (startPos == -1) return( c(NA, NA) )
+    index = sum(startPos >= searchLocs)
+    c(searchLocs[index] + 1, searchLocs[index + 1])
+  }, headerRow = headerRow, searchLocs = searchLocs )
+}
+
+womenResMat = lapply(womenFiles, extractVariables)
+
+age = sapply(womenResMat, 
+             function(x) as.numeric(x[ , 'ag']))
+#### to fix problem with Men 2001
+sapply(age,  function(x) sum(is.na(x)))
+
+age2001 = age[["2001"]]
+
+grep("^===", womenFiles[['2001']])
+
+badAgeIndex = which(is.na(age2001)) + 5
+womenFiles[['2001']][ badAgeIndex ]
+
+badAgeIndex
+
+which(age2001 < 5)
+
+womenFiles[['2001']][ which(age2001 < 5) + 5 ]
+
+##_____page 60
+
+charTime = womenResMat[["2012"]][, "time"]
+head(charTime, 5)
+tail(charTime,5)
+
+timePieces = strsplit(charTime, ":")
+
+timePieces[[1]]
+tail(timePieces, 1)
+
+timePieces = sapply(timePieces, as.numeric)
+runTime = sapply(timePieces,
+                 function(x) {
+                   if (length(x) == 2) x[1] + x[2]/60
+                   else 60*x[1] + x[2] + x[3]/60
+                 })
+
+summary(runTime)
+
+#####--------------- page 61 create DataFrame
+
+convertTime = function(time) {
+  timePieces = strsplit(time, ":")
+  timePieces = sapply(timePieces, as.numeric)
+  sapply(timePieces, function(x) {
+    if (length(x) == 2) x[1] + x[2]/60
+    else 60*x[1] + x[2] + x[3]/60
+  })
+}
+
+createDF = function(Res, year, sex) {
+  # Determine which time to use
+  if ( !is.na(Res[1, 'net']) ) useTime = Res[ , 'net']
+  else if ( !is.na(Res[1, 'gun']) ) useTime = Res[ , 'gun']
+  else useTime = Res[ , 'time']
+  
+  # Remove # and * and blanks from time
+  useTime = gsub("[#\\*[:blank:]]", "", useTime)    # another regular expression / string interpolation
+  runTime = convertTime(useTime[ useTime != "" ])
+  
+  # Drop rows with no time
+  Res = Res[ useTime != "", ]
+  
+  Results = data.frame(year = rep(year, nrow(Res)),
+                       sex = rep(sex, nrow(Res)),
+                       name = Res[ , 'name'], home = Res[ , 'home'],
+                       age = as.numeric(Res[, 'ag']), 
+                       runTime = runTime,
+                       stringsAsFactors = FALSE)
+  invisible(Results)
+}
+separatorIdx = grep("^===", womenFiles[["2006"]])
+separatorRow = womenFiles[['2006']][separatorIdx]
+separatorRowX = paste(substring(separatorRow, 1, 63), " ", 
+                      substring(separatorRow, 65, nchar(separatorRow)), 
+                      sep = "")
+womenFiles[['2006']][separatorIdx] = separatorRowX
+# One way of many to deal with this sort of problem
+
+womenResMat = sapply(womenFiles, extractVariables)   # hooray!
+womenDF = mapply(createDF, womenResMat, year = 1999:2012,
+               sex = rep("F", 14), SIMPLIFY = FALSE)
+sapply(womenDF, function(x) sum(is.na(x$runTime)))    
+
+cbwomen = do.call(rbind, womenDF)
+save(cbwomen, file = "cbwomen.rda")
+
+args(rbind)
+function (..., deparse.level = 1)
+  rbind(womenDF[[1]], womenDF[[2]], womenDF[[3]], womenDF[[4]],
+        womenDF[[5]], womenDF[[6]], womenDF[[7]], womenDF[[8]],
+        womenDF[[9]], womenDF[[10]], womenDF[[11]], womenDF[[12]],
+        womenDF[[13]], womenDF[[14]])
+dim(cbwomen)
+
+setwd(WomenTxt)
+write.csv(cbwomen, "cbwomen.csv")
+
+
+```
+
+RESULTS:
+The primary focus of this exercise was the necessary outputs for the analysis portion of the case study.  By webscraping the cherryblossum.org website race results for the years of 1999 to 2012 were obtained. After evaluating the websites various scripts were used to first obtain txt files from the women's results.  While obtaining the txt files certain issues were noted in the html pages. Following the creation of the txt files a .rda file was saved to the directory. 
+The second part of the exercise was the creation of the dataframe itself.  In the script the .txt from the previous exercise was prepared and combined into one single dataframe.  As with the men's txt files the women's txt files had similar issues. These issues were taken care of in the scripts and then combined with a rbind function.  For an extra step a .csv file was created and placed in the working directory as well.
+
+CONCLUSIONS/DISCUSSIONS
+As with any data analysis project the first is obtaining data. During this step many issues may present themselves. For this case study the team decided upon answering question number 7 from the book.  In question 7 the task of creating a dataframe of the women's race time presented many issues.  These issues of course were from the webscraping of the cherryblossum.org website.  Since the data was not centralized many different html pages were needed for the data.  Certain pages were not formatted in similar fashions to others. To deal with these issues functions within the program were to deal with the discrepancies.  The project outputs include both a .rda file and .csv files. These files can be used further for the analysis stage of the data. 
